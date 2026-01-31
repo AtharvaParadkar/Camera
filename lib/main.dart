@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:camera/camera.dart';
 import 'package:camera_app/camera_home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:oktoast/oktoast.dart';
 
 /// _camera stores all the cameras
 /// Use of getter: Prevents accidental reassignment
@@ -27,9 +28,12 @@ class CameraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: CameraHomeScreen(),
+    return OKToast(
+      duration: const Duration(seconds: 3),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: CameraHomeScreen(),
+      ),
     );
   }
 }

@@ -16,6 +16,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   camera: ^0.11.3
   video_player: ^2.10.1
+  oktoast: ^3.4.0
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
