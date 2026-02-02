@@ -17,6 +17,14 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
 
+  double _minAvailableZoom = 1.0;
+  double _maxAvailableZoom = 1.0;
+  double _currentScale = 1.0;
+  double _baseScale = 1.0;
+
+  // Counting pointers(number of user fingers on screen)
+  int _pointers = 0;
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +99,15 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       });
 
       await _controller!.initialize();
+      await Future.wait(<Future<Object?>>[
+        /// Camera tells how far can you zoom
+        _controller!.getMaxZoomLevel().then(
+          (double onValue) => _maxAvailableZoom = onValue,
+        ),
+        _controller!.getMinZoomLevel().then(
+          (onValue) => _minAvailableZoom = onValue,
+        ),
+      ]);
       if (mounted) setState(() {});
     } on CameraException catch (c) {
       switch (c.code) {
@@ -158,9 +175,41 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     } else {
       return AspectRatio(
         aspectRatio: _controller!.value.aspectRatio,
-        child: CameraPreview(_controller!),
+        child: Listener(
+          onPointerDown: (_) => _pointers++,
+          onPointerUp: (_) => _pointers--,
+          child: CameraPreview(
+            _controller!,
+            child: LayoutBuilder(
+              builder: (BuildContext ctx, BoxConstraints cons) {
+                return GestureDetector(
+                  behavior: .opaque,
+                  onScaleStart: _handleScaleStart,    // Fingers placed
+                  onScaleUpdate: _handleScaleUpdate,  // Fingers moved
+                );
+              },
+            ),
+          ),
+        ),
       );
     }
   }
 
+  void _handleScaleStart(ScaleStartDetails details) {
+    // When pinch starts: store base zoom
+    _baseScale = _currentScale;
+  }
+
+  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
+    // When there are not exactly 2 fingers on the screen don't scale ie zoom
+    if (_controller == null || _pointers != 2) {
+      return;
+    }
+    // When fingers move: calculate zoom
+    _currentScale = (_baseScale * details.scale).clamp(
+      _minAvailableZoom,
+      _maxAvailableZoom,
+    );
+    await _controller!.setZoomLevel(_currentScale);
+  }
 }
