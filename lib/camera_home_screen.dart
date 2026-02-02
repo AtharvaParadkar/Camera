@@ -25,6 +25,14 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
   // Counting pointers(number of user fingers on screen)
   int _pointers = 0;
 
+  final List<String> _cameraModes = [
+    'NIGHT',
+    'VIDEO',
+    'PHOTO',
+    'PORTRAIT',
+    'MORE',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -146,16 +154,17 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
         backgroundColor: Color(0xff000000),
         body: Column(
           children: [
-            Container(height: 50, color: Colors.lightBlueAccent),
+            Container(height: 50, color: Colors.black),
             Expanded(child: cameraPreviewWidget()),
-            Container(height: 50, color: Colors.yellowAccent),
-            Container(height: 100, color: Colors.pink),
+            cameraModesRow(),
+            imgCapturePreviewCamSwitchRow(),
           ],
         ),
       ),
     );
   }
 
+  /// ================================  CAMERA PREVIEW ================================
   Widget cameraPreviewWidget() {
     if (_controller == null || !_controller!.value.isInitialized) {
       return Center(
@@ -184,8 +193,8 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
               builder: (BuildContext ctx, BoxConstraints cons) {
                 return GestureDetector(
                   behavior: .opaque,
-                  onScaleStart: _handleScaleStart,    // Fingers placed
-                  onScaleUpdate: _handleScaleUpdate,  // Fingers moved
+                  onScaleStart: _handleScaleStart, // Fingers placed
+                  onScaleUpdate: _handleScaleUpdate, // Fingers moved
                 );
               },
             ),
@@ -211,5 +220,69 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       _maxAvailableZoom,
     );
     await _controller!.setZoomLevel(_currentScale);
+  }
+
+  /// ================================ CAMERA MODES ================================
+  Widget cameraModesRow() {
+    return SizedBox(
+      height: 50,
+      child: ListView.builder(
+        itemCount: _cameraModes.length,
+        scrollDirection: .horizontal,
+        itemBuilder: (BuildContext ctx, i) {
+          return Padding(
+            padding: .symmetric(horizontal: 20, vertical: 15),
+            child: Text(
+              _cameraModes[i],
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: .w600,
+              ),
+              textAlign: .center,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// ================================ IMAGE CAPTURE, PREVIEW & CAMERA SWITCH ================================
+  Widget imgCapturePreviewCamSwitchRow() {
+    return SizedBox(
+      height: 130,
+      child: Row(
+        mainAxisAlignment: .spaceEvenly,
+        children: [
+          Padding(
+            padding: .symmetric(horizontal: 25, vertical: 20),
+            child: SizedBox(height: 30, width: 40),
+          ),
+          Padding(
+            padding: .symmetric(horizontal: 25, vertical: 20),
+            child: Image.asset(
+              "assets/images/camera_shutter.png",
+              height: 70,
+              width: 70,
+            ),
+          ),
+          Padding(
+            padding: .symmetric(horizontal: 25, vertical: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Color(0x70959595),
+                shape: BoxShape.circle,
+              ),
+              padding: .all(3),
+              child: Image.asset(
+                "assets/images/camera_switch.png",
+                height: 40,
+                width: 40,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
