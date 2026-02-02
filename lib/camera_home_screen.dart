@@ -122,6 +122,23 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     }
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Color(0xff000000),
+        body: Column(
+          children: [
+            Container(height: 50, color: Colors.lightBlueAccent),
+            Expanded(child: cameraPreviewWidget()),
+            Container(height: 50, color: Colors.yellowAccent),
+            Container(height: 100, color: Colors.pink),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget cameraPreviewWidget() {
     if (_controller == null || !_controller!.value.isInitialized) {
       return Center(
@@ -146,20 +163,4 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Color(0xff000000),
-        body: Column(
-          children: [
-            Container(height: 50, color: Colors.lightBlueAccent),
-            Expanded(child: cameraPreviewWidget()),
-            Container(height: 50, color: Colors.yellowAccent),
-            Container(height: 100, color: Colors.pink),
-          ],
-        ),
-      ),
-    );
-  }
 }
