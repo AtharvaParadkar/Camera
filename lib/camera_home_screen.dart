@@ -21,6 +21,7 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
   double _maxAvailableZoom = 1.0;
   double _currentScale = 1.0;
   double _baseScale = 1.0;
+  late List<double> _zoomPresets;
 
   // Counting pointers(number of user fingers on screen)
   int _pointers = 0;
@@ -117,6 +118,14 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       _minAvailableZoom = await _controller!.getMinZoomLevel();
       _maxAvailableZoom = await _controller!.getMaxZoomLevel();
       _currentScale = 1.0;
+      _zoomPresets = [
+        1.0,
+        if (_maxAvailableZoom >= 2.0) 2.0,
+        if (_maxAvailableZoom >= 4.0) 4.0,
+        if (_maxAvailableZoom >= 6.0) 6.0,
+        if (_maxAvailableZoom >= 8.0) 8.0,
+        if (_maxAvailableZoom >= 10.0) 10.0,
+      ];
 
       if (mounted) setState(() {});
     } on CameraException catch (c) {
@@ -157,7 +166,15 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
         body: Column(
           children: [
             Container(height: 50, color: Colors.black),
-            Expanded(child: cameraPreviewWidget()),
+            Expanded(
+              child: Stack(
+                alignment: .center,
+                children: [
+                  Positioned.fill(child: cameraPreviewWidget()),
+                  Positioned(bottom: 20, child: zoomControls()),
+                ],
+              ),
+            ),
             cameraModesRow(),
             imgCapturePreviewCamSwitchRow(),
           ],
@@ -206,6 +223,48 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     }
   }
 
+  Widget zoomControls() {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return const SizedBox();
+    }
+
+    return Padding(
+      padding: .only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: .center,
+        children: _zoomPresets.map((zoom) {
+          final isSelected = _currentScale == zoom;
+          return Padding(
+            padding: .symmetric(horizontal: 6),
+            child: GestureDetector(
+              onTap: () => _setZoom(zoom),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.black.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${zoom.toStringAsFixed(0)}x',
+                  style: TextStyle(
+                    color: isSelected ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   void _handleScaleStart(ScaleStartDetails details) {
     // When pinch starts: store base zoom
     _baseScale = _currentScale;
@@ -217,11 +276,26 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       return;
     }
     // When fingers move: calculate zoom
-    _currentScale = (_baseScale * details.scale).clamp(
+    final _newScale = (_baseScale * details.scale).clamp(
       _minAvailableZoom,
       _maxAvailableZoom,
     );
-    await _controller!.setZoomLevel(_currentScale);
+    if (_newScale != _currentScale) {
+      _currentScale = _newScale;
+      await _controller!.setZoomLevel(_currentScale);
+    }
+  }
+
+  Future<void> _setZoom(double zoom) async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
+    final clampedZoom = zoom.clamp(_minAvailableZoom, _maxAvailableZoom);
+
+    setState(() {
+      _currentScale = clampedZoom;
+      _baseScale = clampedZoom;
+    });
+    await _controller!.setZoomLevel(clampedZoom);
   }
 
   /// ================================ CAMERA MODES ================================
