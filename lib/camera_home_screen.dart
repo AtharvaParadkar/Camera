@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:camera_app/main.dart';
@@ -28,6 +29,9 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
 
   late List<CameraDescription> _cameras;
   CameraDescription? _currentCamera;
+
+  XFile? imageFile;
+  bool _isCapturing = false;
 
   final List<String> _cameraModes = [
     'NIGHT',
@@ -332,19 +336,35 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
         children: [
           Padding(
             padding: .symmetric(horizontal: 25, vertical: 20),
-            child: SizedBox(height: 30, width: 40),
+            child: imageFile == null
+                ? SizedBox(height: 30, width: 40)
+                : ClipRRect(
+                    borderRadius: .circular(8),
+                    child: Image.file(
+                      File(imageFile!.path),
+                      height: 40,
+                      width: 40,
+                      fit: .cover,
+                    ),
+                  ),
           ),
           Padding(
             padding: .symmetric(horizontal: 25, vertical: 20),
-            child: Image.asset(
-              "assets/images/camera_shutter.png",
-              height: 70,
-              width: 70,
+            child: GestureDetector(
+              onTap: _isCapturing ? null : _captureImage,
+              child: Opacity(
+                opacity: _isCapturing ? 0.6 : 1.0,
+                child: Image.asset(
+                  "assets/images/camera_shutter.png",
+                  height: 70,
+                  width: 70,
+                ),
+              ),
             ),
           ),
           Padding(
             padding: .symmetric(horizontal: 25, vertical: 20),
-            child: InkWell(
+            child: GestureDetector(
               onTap: _switchCamera,
               child: Container(
                 decoration: BoxDecoration(
@@ -363,6 +383,29 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _captureImage() async {
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _controller!.value.isTakingPicture)
+      return;
+
+    try {
+      setState(() => _isCapturing = true);
+
+      final XFile file = await _controller!.takePicture();
+      imageFile = file;
+      log('Photo captured at: ${file.path}');
+      showToast('Photo saved ${file.path}');
+    } on CameraException catch (c) {
+      log('Error capturing photo: ${c.code} ${c.description}');
+      showToast('Failed to capture photo');
+    } finally {
+      if (mounted) {
+        setState(() => _isCapturing = false);
+      }
+    }
   }
 
   Future<void> _switchCamera() async {
