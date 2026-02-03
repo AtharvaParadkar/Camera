@@ -25,6 +25,9 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
   // Counting pointers(number of user fingers on screen)
   int _pointers = 0;
 
+  late List<CameraDescription> _cameras;
+  CameraDescription? _currentCamera;
+
   final List<String> _cameraModes = [
     'NIGHT',
     'VIDEO',
@@ -81,10 +84,13 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     return false;
   }
 
-  Future<void> _initializeCamera() async {
+  Future<void> _initializeCamera({CameraDescription? camera}) async {
     final granted = await _requestPermission();
     if (!granted) return;
     try {
+      _cameras = cameraList;
+      _currentCamera ??= camera ?? _cameras.first;
+
       // 🔥 Dispose previous controller if any
       if (_controller != null) {
         await _controller!.dispose();
@@ -92,7 +98,7 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       }
 
       _controller = CameraController(
-        camera.last,
+        _currentCamera!,
         ResolutionPreset.medium,
         enableAudio: true,
       );
@@ -107,15 +113,11 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       });
 
       await _controller!.initialize();
-      await Future.wait(<Future<Object?>>[
-        /// Camera tells how far can you zoom
-        _controller!.getMaxZoomLevel().then(
-          (double onValue) => _maxAvailableZoom = onValue,
-        ),
-        _controller!.getMinZoomLevel().then(
-          (onValue) => _minAvailableZoom = onValue,
-        ),
-      ]);
+
+      _minAvailableZoom = await _controller!.getMinZoomLevel();
+      _maxAvailableZoom = await _controller!.getMaxZoomLevel();
+      _currentScale = 1.0;
+
       if (mounted) setState(() {});
     } on CameraException catch (c) {
       switch (c.code) {
@@ -268,21 +270,41 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
           ),
           Padding(
             padding: .symmetric(horizontal: 25, vertical: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Color(0x70959595),
-                shape: BoxShape.circle,
-              ),
-              padding: .all(3),
-              child: Image.asset(
-                "assets/images/camera_switch.png",
-                height: 40,
-                width: 40,
+            child: InkWell(
+              onTap: _switchCamera,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color(0x70959595),
+                  shape: BoxShape.circle,
+                ),
+                padding: .all(3),
+                child: Image.asset(
+                  "assets/images/camera_switch.png",
+                  height: 40,
+                  width: 40,
+                ),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras.length < 2) {
+      showToast("No secondary camera available");
+      return;
+    }
+
+    final isBackCam = _currentCamera!.lensDirection == CameraLensDirection.back;
+
+    _currentCamera = _cameras.firstWhere(
+      (cam) =>
+          cam.lensDirection ==
+          (isBackCam ? CameraLensDirection.front : CameraLensDirection.back),
+    );
+
+    await _initializeCamera(camera: _currentCamera);
   }
 }

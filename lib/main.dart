@@ -9,14 +9,14 @@ import 'package:oktoast/oktoast.dart';
 /// Use of getter: Prevents accidental reassignment
 /// Central source of truth
 /// Common Flutter camera pattern
-List<CameraDescription> get camera => _camera;
-List<CameraDescription> _camera = <CameraDescription>[];
+List<CameraDescription> get cameraList => _cameraList;
+List<CameraDescription> _cameraList = <CameraDescription>[];
 
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    _camera = await availableCameras();
-    log("Camera $_camera");
+    _cameraList = await availableCameras();
+    log("Camera $_cameraList");
   } on CameraException catch (c) {
     log("Error on getting available cameras ${c.code}, ${c.description}");
   }
