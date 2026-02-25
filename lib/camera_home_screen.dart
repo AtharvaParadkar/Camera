@@ -1,10 +1,12 @@
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:camera_app/main.dart';
 import 'package:camera_app/view_photo.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:path_provider/path_provider.dart';
@@ -43,6 +45,8 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     'PORTRAIT',
     'MORE',
   ];
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -408,7 +412,9 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
     try {
       setState(() => _isCapturing = true);
 
+      HapticFeedback.lightImpact();
       final XFile file = await _controller!.takePicture();
+      await _audioPlayer.play(AssetSource("sounds/camera_shutter.mp3"));
       imageFile = file;
       log('Photo captured at: ${file.path}');
 
