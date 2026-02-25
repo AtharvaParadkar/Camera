@@ -5,7 +5,9 @@ import 'package:camera/camera.dart';
 import 'package:camera_app/main.dart';
 import 'package:camera_app/view_photo.dart';
 import 'package:flutter/material.dart';
+import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:oktoast/oktoast.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CameraHomeScreen extends StatefulWidget {
@@ -409,7 +411,44 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       final XFile file = await _controller!.takePicture();
       imageFile = file;
       log('Photo captured at: ${file.path}');
-      showToast('Photo saved ${file.path}');
+
+      // Save image to gallery using gallery_saver_plus package
+      // await GallerySaver.saveImage(file.path);
+
+      /// Save image to gallery to custom folder using path_provider package
+      // Get DCIM directory
+      final Directory? dcimDirectory = Directory("/storage/emulated/0/DCIM");
+
+      if (dcimDirectory == null) {
+        showToast("Failed to get DCIM directory");
+        return;
+      }
+
+      log(dcimDirectory.path);
+      // Create camera photos folder inside DCIM
+      final Directory cameraFolder = Directory(
+        "${dcimDirectory.path}/Camera Photos",
+      );
+
+      if (!await cameraFolder.exists()) {
+        await cameraFolder.create(recursive: true);
+      }
+
+      // Create new file path
+      final String newPath =
+          "${cameraFolder.path}/${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+      // Copy file from cache to new folder
+      await File(file.path).copy(newPath);
+
+      // Delete the cached file
+      await File(file.path).delete();
+
+      // Update imageFile to point to the new path
+      imageFile = XFile(newPath);
+
+      log('Photo saved at: $newPath');
+      showToast("Photo saved to gallery 🎉");
     } on CameraException catch (c) {
       log('Error capturing photo: ${c.code} ${c.description}');
       showToast('Failed to capture photo');
