@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:camera_app/main.dart';
+import 'package:camera_app/view_photo.dart';
 import 'package:flutter/material.dart';
 import 'package:oktoast/oktoast.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -338,13 +339,24 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
             padding: .symmetric(horizontal: 25, vertical: 20),
             child: imageFile == null
                 ? SizedBox(height: 30, width: 40)
-                : ClipRRect(
-                    borderRadius: .circular(8),
-                    child: Image.file(
-                      File(imageFile!.path),
-                      height: 40,
-                      width: 40,
-                      fit: .cover,
+                : GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ViewPhoto(imagePath: imageFile!.path),
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: .circular(8),
+                      child: Image.file(
+                        File(imageFile!.path),
+                        height: 40,
+                        width: 40,
+                        fit: .cover,
+                      ),
                     ),
                   ),
           ),
