@@ -1,10 +1,15 @@
+// ignore_for_file: unused_import
+
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:camera/camera.dart';
 import 'package:camera_app/main.dart';
 import 'package:camera_app/view_photo.dart';
+import 'package:camera_app/zoom_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
@@ -27,7 +32,27 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
   double _maxAvailableZoom = 1.0;
   double _currentScale = 1.0;
   double _baseScale = 1.0;
-  late List<double> _zoomPresets;
+
+  bool _isZoomDialVisible = false;
+  Timer? _zoomDialTimer;
+
+  void _showZoomDial() {
+    setState(() {
+      _isZoomDialVisible = true;
+    });
+    _resetZoomDialTimer();
+  }
+
+  void _resetZoomDialTimer() {
+    _zoomDialTimer?.cancel();
+    _zoomDialTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isZoomDialVisible = false;
+        });
+      }
+    });
+  }
 
   // Counting pointers(number of user fingers on screen)
   int _pointers = 0;
@@ -59,6 +84,7 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
 
   @override
   void dispose() {
+    _zoomDialTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
@@ -129,14 +155,6 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       _minAvailableZoom = await _controller!.getMinZoomLevel();
       _maxAvailableZoom = await _controller!.getMaxZoomLevel();
       _currentScale = 1.0;
-      _zoomPresets = [
-        1.0,
-        if (_maxAvailableZoom >= 2.0) 2.0,
-        if (_maxAvailableZoom >= 4.0) 4.0,
-        if (_maxAvailableZoom >= 6.0) 6.0,
-        if (_maxAvailableZoom >= 8.0) 8.0,
-        if (_maxAvailableZoom >= 10.0) 10.0,
-      ];
 
       if (mounted) setState(() {});
     } on CameraException catch (c) {
@@ -182,7 +200,12 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
                 alignment: .center,
                 children: [
                   Positioned.fill(child: cameraPreviewWidget()),
-                  Positioned(bottom: 20, child: zoomControls()),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: zoomControls(),
+                  ),
                 ],
               ),
             ),
@@ -239,39 +262,140 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       return const SizedBox();
     }
 
+    if (_isZoomDialVisible) {
+      return ZoomDial(
+        currentZoom: _currentScale,
+        minZoom: _minAvailableZoom,
+        maxZoom: _maxAvailableZoom,
+        onZoomChanged: (zoom) {
+          _setZoom(zoom);
+          _resetZoomDialTimer();
+        },
+      );
+    }
+
+    double leftZoomValue = 1.0;
+    double rightZoomValue = 2.0;
+    bool isLeftActive = true;
+
+    if (_currentScale < 2.0) {
+      leftZoomValue = _currentScale;
+      rightZoomValue = 2.0;
+      isLeftActive = true;
+    } else {
+      leftZoomValue = 1.0;
+      rightZoomValue = _currentScale;
+      isLeftActive = false;
+    }
+
+    if (rightZoomValue > _maxAvailableZoom) {
+      rightZoomValue = _maxAvailableZoom;
+    }
+
+    // leftZoomValue could be below minZoom if we're not careful
+    if (leftZoomValue < _minAvailableZoom) {
+      leftZoomValue = _minAvailableZoom;
+    }
+
+    bool showRightButton = _maxAvailableZoom >= 2.0 || _currentScale >= 2.0;
+
+    String formatZoom(double zoom) {
+      if (zoom == zoom.truncateToDouble()) {
+        return zoom.truncate().toString();
+      }
+      String s = zoom.toStringAsFixed(1);
+      if (s.endsWith('.0')) {
+        return s.substring(0, s.length - 2);
+      }
+      return s;
+    }
+
     return Padding(
-      padding: .only(bottom: 16),
+      padding: const .only(bottom: 16),
       child: Row(
         mainAxisAlignment: .center,
-        children: _zoomPresets.map((zoom) {
-          final isSelected = _currentScale == zoom;
-          return Padding(
-            padding: .symmetric(horizontal: 6),
-            child: GestureDetector(
-              onTap: () => _setZoom(zoom),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white
-                      : Colors.black.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${zoom.toStringAsFixed(0)}x',
-                  style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.white,
-                    fontWeight: FontWeight.bold,
+        children: [
+          GestureDetector(
+            onLongPress: _showZoomDial,
+            child: Container(
+              height: 35,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: .circular(22),
+              ),
+              child: Row(
+                mainAxisSize: .min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _setZoom(1.0);
+                    },
+                    behavior: .opaque,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      constraints: const BoxConstraints(
+                        minWidth: 35,
+                        minHeight: 35,
+                      ),
+                      padding: const .symmetric(horizontal: 8),
+                      alignment: .center,
+                      decoration: BoxDecoration(
+                        color: isLeftActive
+                            ? const Color(0xFF2C2C2C)
+                            : Colors.transparent,
+                        borderRadius: .circular(22),
+                      ),
+                      child: Text(
+                        isLeftActive
+                            ? "${formatZoom(leftZoomValue)}x"
+                            : formatZoom(leftZoomValue),
+                        style: TextStyle(
+                          color: isLeftActive ? Colors.orange : Colors.white,
+                          fontWeight: isLeftActive ? .bold : .w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  if (showRightButton)
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _setZoom(2.0);
+                      },
+                      behavior: .opaque,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        constraints: const BoxConstraints(
+                          minWidth: 35,
+                          minHeight: 35,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: !isLeftActive
+                              ? const Color(0xFF2C2C2C)
+                              : Colors.transparent,
+                          borderRadius: .circular(22),
+                        ),
+                        child: Text(
+                          !isLeftActive
+                              ? "${formatZoom(rightZoomValue)}x"
+                              : formatZoom(rightZoomValue),
+                          style: TextStyle(
+                            color: !isLeftActive ? Colors.orange : Colors.white,
+                            fontWeight: !isLeftActive ? .bold : .w500,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -287,12 +411,12 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
       return;
     }
     // When fingers move: calculate zoom
-    final _newScale = (_baseScale * details.scale).clamp(
+    final newScale = (_baseScale * details.scale).clamp(
       _minAvailableZoom,
       _maxAvailableZoom,
     );
-    if (_newScale != _currentScale) {
-      _currentScale = _newScale;
+    if (newScale != _currentScale) {
+      _currentScale = newScale;
       await _controller!.setZoomLevel(_currentScale);
     }
   }
@@ -406,8 +530,9 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
   Future<void> _captureImage() async {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
-        _controller!.value.isTakingPicture)
+        _controller!.value.isTakingPicture) {
       return;
+    }
 
     try {
       setState(() => _isCapturing = true);
@@ -423,12 +548,7 @@ class _CameraHomeScreenState extends State<CameraHomeScreen>
 
       /// Save image to gallery to custom folder using path_provider package
       // Get DCIM directory
-      final Directory? dcimDirectory = Directory("/storage/emulated/0/DCIM");
-
-      if (dcimDirectory == null) {
-        showToast("Failed to get DCIM directory");
-        return;
-      }
+      final Directory dcimDirectory = Directory("/storage/emulated/0/DCIM");
 
       log(dcimDirectory.path);
       // Create camera photos folder inside DCIM
